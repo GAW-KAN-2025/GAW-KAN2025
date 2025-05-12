@@ -41,7 +41,7 @@ class GraphKANLayer(nn.Module):
         return out
 
 class WGAK(nn.Module):
-    def __init__(self, input_dim=12, output_dim=1, hidden_dim=64, num_layers=2, wavelet_type='db1', dwt_level=1, adj=None, dropout=0.1):
+    def __init__(self, input_dim=12, output_dim=1, hidden_dim=64, num_layers=2, wavelet_type='db1', dwt_level=3, adj=None, dropout=0.1):
         super().__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
@@ -64,5 +64,9 @@ class WGAK(nn.Module):
         # x: (batch, node, input_dim)
         res = self.res(x)
         for layer in self.layers:
+            x_in = x
             x = layer(x)
+            # 层间残差：只有当x和x_in形状一致时才加
+            if x.shape == x_in.shape:
+                x = x + x_in
         return x + res

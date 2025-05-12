@@ -25,6 +25,7 @@ def train(args):
     bs = 512
     p_epoch = 200
     n_epoch = 1000
+    patience = 30  # early stopping patience
     law_list = np.array([-1.48, -0.74])  # price elasticities of demand for EV charging. Recommend: up to 5 elements.
     is_train = True
     mode = 'completed'  # 'simplified' or 'completed'
@@ -64,6 +65,12 @@ def train(args):
             else:
                 print("Mode error, skip the pre-training process.")
 
+        # Early stopping variables
+        best_val_loss = float('inf')
+        best_model = None
+        counter = 0
+        best_epoch = 0
+
         for epoch in tqdm(range(n_epoch), desc='Fine-tuning'):
             for j, data in enumerate(train_loader):
                 model.train()
@@ -84,8 +91,26 @@ def train(args):
                 loss = loss_function(predict, label)
                 v_loss += loss.item()
             v_loss /= len(valid_loader)
-            torch.save(model, './checkpoints' + '/' + model_name + '_' + dataset + '_' + str(pre_l) + '_bs' + str(bs) + '_' + mode + bspline_tag + '.pt')
+            
+            # Check if validation loss improved
+            if v_loss < best_val_loss:
+                best_val_loss = v_loss
+                best_model = model.state_dict().copy()
+                counter = 0
+                best_epoch = epoch
+                print(f"Epoch {epoch}: Validation loss improved to {v_loss:.6f}")
+                model_path = './checkpoints' + '/' + model_name + '_' + dataset + '_' + str(pre_l) + '_bs' + str(bs) + '_' + mode + bspline_tag + '.pt'
+                torch.save(model, model_path)
+            else:
+                counter += 1
+                print(f"Epoch {epoch}: Validation loss did not improve. Counter: {counter}/{patience}")
                 
+            # Early stopping check
+            if counter >= patience:
+                print(f"Early stopping at epoch {epoch}. Best validation loss: {best_val_loss:.6f} at epoch {best_epoch}")
+                # Load the best model
+                model.load_state_dict(best_model)
+                break
 
     print(f"----Training finished!----")
     
