@@ -1,0 +1,16 @@
+# python==3.9
+numpy==1.24.1
+pandas
+scikit-learn==1.3.2
+matplotlib
+seaborn
+torch==2.0.1
+torchaudio==2.0.2
+torchvision==0.15.2
+tqdm
+geopy
+torch_geometric
+tables
+pytorch_wavelets
+PyWavelets
+pygsp
