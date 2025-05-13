@@ -23,6 +23,11 @@ if [ ! -d "$checkpoints_dir" ]; then
     mkdir -p "$checkpoints_dir" && echo "make dictionary $checkpoints_dir"
 fi
 
+analysis_dir="./analysis"
+if [ ! -d "$analysis_dir" ]; then
+    mkdir -p "$analysis_dir" && echo "make dictionary $analysis_dir"
+fi
+
 for ARG in "$@"; do
   case $ARG in
     model_name=*)
@@ -80,7 +85,7 @@ if [[ "$dataset" == "PEMS-BAY" ]]; then
   fi
 fi
 
-model_list=("KAN" "PAG" "VAR" "FCN" "LSTM" "TransformerModel" "GCN" "GAT" "STGCN" "LstmGcn" "LstmGat" "HSTGCN" "TPA" "FGN" \
+model_list=("KAN" "VAR" "FCN" "LSTM" "TransformerModel" "GCN" "GAT" "STGCN" "LstmGcn" "LstmGat" "HSTGCN" "TPA" "FGN" \
   "GAF" "SGCTN" "WaveSTFTGAT" "waveletGAT" "FreTimeFusion" "FourierGAT" "CoupFourGAT" "CoupFourGAT_v2" "STAK" "SWAK" "WavKAN" "WGAK")
 
 if [ ${#pre_len_arr[@]} -eq 0 ]; then

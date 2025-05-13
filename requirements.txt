@@ -14,3 +14,5 @@ tables
 pytorch_wavelets
 PyWavelets
 pygsp
+lime
+scipy
