@@ -11,6 +11,8 @@ from scipy.interpolate import griddata
 import random
 from pyheatmap.heatmap import HeatMap
 from PIL import Image
+import shap
+from shap import Gradient, Partition
 
 # 固定随机种子，保证LIME可复现
 random.seed(2025)
@@ -107,12 +109,6 @@ def main(args):
     print("原始x_data.shape:", x_data.shape)
     print("原始occ_data.shape:", occ_data.shape)
 
-    # 计算每个节点在时间维度的方差
-    time_var = np.var(x_data, axis=2)  # (N, node)
-    print("每个节点在时间维度的方差均值:", np.mean(time_var))
-    print("每个节点在时间维度的方差最大值:", np.max(time_var))
-    print("每个节点在时间维度的方差的方差:", np.var(time_var))
-
     seq_len = args.seq_len
     # 自动判断x_data shape并转为(N, node, seq_len)
     if x_data.ndim == 3:
@@ -145,46 +141,49 @@ def main(args):
         for t in range(seq_len):
             feature_names.append(f'x[{n},{t}]')
 
-    # 构造LIME解释器
-    explainer = LimeTabularExplainer(input_flat, mode="regression", feature_names=feature_names)
-
-    def lime_predict(input_flat):
-        batch = input_flat.shape[0]
-        expected_feat = node * seq_len
-        if input_flat.shape[1] != expected_feat:
-            raise ValueError(f"LIME input shape mismatch: got {input_flat.shape}, expected {node}*{seq_len}={expected_feat}")
-        x_part = input_flat.reshape(batch, node, seq_len)
-        x_tensor = torch.tensor(x_part, dtype=torch.float32)
-        occ_tensor = None  # 忽略occ
+    # 构造SHAP解释器
+    # 采样部分样本作为background
+    background = torch.tensor(x_data[:min(50, N)], dtype=torch.float32).to(device)
+    def shap_predict(x_numpy):
+        x_tensor = torch.tensor(x_numpy, dtype=torch.float32).to(device)
+        occ_tensor = None
         return model_predict_fn(model, device, occ_tensor, x_tensor)
-
-    # 全局LIME解释
-    num_global_samples = min(10, N)  # 可根据需要调整样本数
-    global_node_importance = np.zeros(node)
-    global_time_importance = np.zeros(seq_len)
-    for idx in range(num_global_samples):
-        exp = explainer.explain_instance(input_flat[idx], lime_predict, num_features=node*seq_len)
-        all_weights = exp.local_exp[1]
-        weights = np.zeros(node * seq_len)
-        for idx_weight in all_weights:
-            i, w = idx_weight
-            weights[i] = w
-        weights_matrix = weights.reshape(node, seq_len)
-        global_node_importance += np.abs(weights_matrix).sum(axis=1)
-        global_time_importance += np.abs(weights_matrix).sum(axis=0)
-    global_node_importance /= num_global_samples
-    global_time_importance /= num_global_samples
-    print('[全局LIME] node_importance:', global_node_importance)
-    print('[全局LIME] time_importance:', global_time_importance)
+    # 检查shap可用解释器
+    has_gradient = True
+    has_partition = True
+    print(f"[SHAP] Gradient可用: {has_gradient}, Partition可用: {has_partition}")
+    if has_gradient and hasattr(model, 'forward') and hasattr(model, 'parameters'):
+        explainer = Gradient(model, background)
+        shap_values = explainer.shap_values(torch.tensor(x_data[:N], dtype=torch.float32).to(device))
+        if isinstance(shap_values, list):
+            shap_values = shap_values[0]
+        shap_values = shap_values.cpu().numpy() if hasattr(shap_values, 'cpu') else np.array(shap_values)
+    elif has_partition:
+        explainer = Partition(shap_predict, background.cpu().numpy())
+        shap_values = explainer.shap_values(x_data[:N], nsamples=100)
+        if isinstance(shap_values, list):
+            shap_values = shap_values[0]
+    else:
+        raise ImportError('你的shap库不支持Gradient/Partition解释器，请尝试：pip install --upgrade shap')
+    # 统一为(N, node, seq_len)
+    if shap_values.ndim == 2:
+        node = shap_values.shape[1] // seq_len
+        shap_values = shap_values.reshape(-1, node, seq_len)
+    print('[全局SHAP] shape:', shap_values.shape)
+    # 节点和时间步重要性
+    global_node_importance = np.abs(shap_values).sum(axis=(0,2)) / N
+    global_time_importance = np.abs(shap_values).sum(axis=(0,1)) / N
+    print('[全局SHAP] node_importance:', global_node_importance)
+    print('[全局SHAP] time_importance:', global_time_importance)
 
     # 全局节点重要性条形图
     plt.figure(figsize=(8,4))
     plt.bar(range(node), global_node_importance)
     plt.xlabel('Node')
-    plt.ylabel('Global LIME Importance (sum over time)')
-    plt.title('Global Node-wise LIME Importance')
+    plt.ylabel('Global SHAP Importance (sum over time)')
+    plt.title('Global Node-wise SHAP Importance')
     plt.tight_layout()
-    plt.savefig(f'./analysis/{args.dataset}_lime_global_node_importance.png')
+    plt.savefig(f'./analysis/{args.dataset}_shap_global_node_importance.png')
     plt.show()
 
     # 全局空间热力图（pyHeatMap）
@@ -200,59 +199,45 @@ def main(args):
         lats = loc_df['la'].values[:node]
     else:
         raise ValueError(f"Unknown dataset for location info: {args.dataset}")
-    # 需要安装pyHeatMap: pip install pyHeatMap
-    # 经纬度归一化到像素坐标
     img_size = (600, 600)
     lon_min, lon_max = lons.min(), lons.max()
     lat_min, lat_max = lats.min(), lats.max()
     def to_pixel(lon, lat):
         x = int((lon - lon_min) / (lon_max - lon_min) * (img_size[0] - 1))
         y = int((lat - lat_min) / (lat_max - lat_min) * (img_size[1] - 1))
-        return [x, img_size[1] - 1 - y]  # y轴反向
-    # 对节点重要性做对数归一化，使热力分布更均匀
+        return [x, img_size[1] - 1 - y]
     norm_importance = np.log1p(global_node_importance / global_node_importance.max() * 10)
-    # 生成points时用norm_importance
     points = []
     for lon, lat, value in zip(lons, lats, norm_importance):
         pt = to_pixel(lon, lat)
         points.append(pt + [float(value)])
-    # 生成热力图
     hm = HeatMap(points, width=img_size[0], height=img_size[1])
     heatmap_img = hm.heatmap()
-    heatmap_img.save(f'./analysis/{args.dataset}_lime_global_node_spatial_heatmap_pyheatmap.png')
-    # 用matplotlib显示
+    heatmap_img.save(f'./analysis/{args.dataset}_shap_global_node_spatial_heatmap_pyheatmap.png')
     plt.figure(figsize=(8,6))
     plt.imshow(heatmap_img)
     plt.axis('off')
-    plt.title('Global Spatial LIME Node Importance (pyHeatMap)')
+    plt.title('Global Spatial SHAP Node Importance (pyHeatMap)')
     plt.tight_layout()
-    plt.savefig(f'./analysis/{args.dataset}_lime_global_time_importance.png')
+    plt.savefig(f'./analysis/{args.dataset}_shap_global_time_importance.png')
     plt.show()
 
     # 全局时间步重要性条形图
     plt.figure(figsize=(8,4))
     plt.bar(range(seq_len), global_time_importance)
     plt.xlabel('Time Step')
-    plt.ylabel('Global LIME Importance (sum over nodes)')
-    plt.title('Global Time-step-wise LIME Importance')
+    plt.ylabel('Global SHAP Importance (sum over nodes)')
+    plt.title('Global Time-step-wise SHAP Importance')
     plt.tight_layout()
-    plt.savefig(f'./analysis/{args.dataset}_lime_global_time_importance.png')
+    plt.savefig(f'./analysis/{args.dataset}_shap_global_time_importance.png')
     plt.show()
 
     # --- 逐未来时间步的全局时间重要性条形图 ---
     for t in range(seq_len):
         step_time_importance = np.zeros(seq_len)
-        for idx in range(num_global_samples):
-            exp = explainer.explain_instance(input_flat[idx], lime_predict, num_features=node*seq_len)
-            all_weights = exp.local_exp[1]
-            weights = np.zeros(node * seq_len)
-            for idx_weight in all_weights:
-                i, w = idx_weight
-                weights[i] = w
-            weights_matrix = weights.reshape(node, seq_len)
-            # 所有节点在输入每个时间步对预测第t步的贡献
-            step_time_importance += np.abs(weights_matrix).sum(axis=0)
-        step_time_importance /= num_global_samples
+        for idx in range(N):
+            step_time_importance += np.abs(shap_values[idx, :, t])
+        step_time_importance /= N
         plt.figure(figsize=(8,4))
         bars = plt.bar(range(seq_len), step_time_importance)
         # 重要性前三名标红
@@ -260,17 +245,17 @@ def main(args):
         for idx in top3_idx:
             bars[idx].set_color('red')
         plt.xlabel('Input Time Step')
-        plt.ylabel(f'LIME Importance for Output Step {t+1}')
-        plt.title(f'Global Time-step-wise LIME Importance for Output Step {t+1}')
+        plt.ylabel(f'SHAP Importance for Output Step {t+1}')
+        plt.title(f'Global Time-step-wise SHAP Importance for Output Step {t+1}')
         plt.tight_layout()
-        plt.savefig(f'./analysis/{args.dataset}_lime_global_time_importance_step{t+1}.png')
+        plt.savefig(f'./analysis/{args.dataset}_shap_global_time_importance_step{t+1}.png')
         plt.show()
 
-        out_path = f'./analysis/{args.dataset}_lime_global_node_spatial_heatmap_pyheatmap_step{t+1}.png'
+        out_path = f'./analysis/{args.dataset}_shap_global_node_spatial_heatmap_pyheatmap_step{t+1}.png'
         heatmap_img.save(out_path)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="LIME analysis for WGAK model.")
+    parser = argparse.ArgumentParser(description="SHAP analysis for WGAK model.")
     parser.add_argument('--model_path', type=str, required=True, help='Path to WGAK model .pt file')
     parser.add_argument('--adj_path', type=str, required=True, help='Path to adjacency matrix .pt file')
     parser.add_argument('--dataset', type=str, required=True, help='Dataset name for data_switcher', default='PEMS-BAY')

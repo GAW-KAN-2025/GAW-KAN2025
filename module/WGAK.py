@@ -9,11 +9,14 @@ class GraphKANLayer(nn.Module):
         self.adj = adj  # (node, node)
         self.feat_dim = feat_dim
         self.out_dim = out_dim
+        self.dwt_level = dwt_level
         self.dwt = DWT1DForward(J=dwt_level, wave=wavelet_type, mode='zero')
-        test_arr = torch.zeros(1, 1, 1)
-        cA, _ = self.dwt(test_arr)
-        self.wave_len = cA.shape[-1]
-        self.nonlinear = nn.ModuleList([nn.Linear(self.wave_len, 1) for _ in range(feat_dim)])
+        test_arr = torch.zeros(1, 1, 2 ** dwt_level)  # 使得每一级都有分解
+        cA, cD_list = self.dwt(test_arr)
+        # 计算所有cA和cD拼接后的长度
+        wavelet_lens = [cA.shape[-1]] + [cD.shape[-1] for cD in cD_list]
+        self.wavelet_full_len = sum(wavelet_lens)
+        self.nonlinear = nn.ModuleList([nn.Linear(self.wavelet_full_len, 1) for _ in range(feat_dim)])
         self.linear_out = nn.Linear(feat_dim, out_dim)
         self.dropout = nn.Dropout(dropout)
 
@@ -34,14 +37,23 @@ class GraphKANLayer(nn.Module):
 
     def _wavelet_feature(self, x, i):
         batch = x.shape[0]
-        x_reshape = x.view(batch, 1, 1)
-        cA, _ = self.dwt(x_reshape)
-        cA = cA.squeeze(1)
-        out = self.nonlinear[i](cA)
+        # 补零到2**dwt_level长度
+        min_len = 2 ** self.dwt_level
+        if x.shape[1] < min_len:
+            pad = min_len - x.shape[1]
+            x = F.pad(x, (0, pad))
+        x_reshape = x.view(batch, 1, -1)
+        cA, cD_list = self.dwt(x_reshape)
+        # cA: (batch, 1, L), cD_list: list of (batch, 1, L_i)
+        features = [cA.squeeze(1)]
+        for cD in cD_list:
+            features.append(cD.squeeze(1))
+        feat_cat = torch.cat(features, dim=-1)  # (batch, total_len)
+        out = self.nonlinear[i](feat_cat)
         return out
 
 class WGAK(nn.Module):
-    def __init__(self, input_dim=12, output_dim=1, hidden_dim=64, num_layers=2, wavelet_type='db1', dwt_level=3, adj=None, dropout=0.1):
+    def __init__(self, input_dim=12, output_dim=1, hidden_dim=64, num_layers=2, wavelet_type='db1', dwt_level=2, adj=None, dropout=0.1):
         super().__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim

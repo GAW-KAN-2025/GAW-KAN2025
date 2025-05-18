@@ -14,7 +14,9 @@ def get_data_loaders(data_name, seq_l, pre_l, device, bs):
         train_price = train_price.reshape(-1, train_price.shape[-1])[:5000,...]
     else: 
         raise FileNotFoundError(f"Unexisting dataset {data_name}!")
-
+    print(train_occupancy.shape)
+    print(valid_occupancy.shape)
+    print(test_occupancy.shape)
     train_loader = DataLoader(train_dataset, batch_size=bs, shuffle=True, drop_last=True)
     valid_loader = DataLoader(valid_dataset, batch_size=len(valid_occupancy), shuffle=False)
     test_loader = DataLoader(test_dataset, batch_size=len(test_occupancy), shuffle=False)
