@@ -3,3 +3,5 @@ checkpoints/*
 results/*
 analysis/*
 tools/_pycache/*
+module/_pycache/*
+scripts/_pycache/*
