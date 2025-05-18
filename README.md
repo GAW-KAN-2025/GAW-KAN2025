@@ -1,6 +1,6 @@
 # GAW-KAN
 
-This repository is the official implementation of [GAW-KAN: A Novel Kolmogorov-Arnold Network with Graph Attention and Wavelet Transform-based Layers for Spatial and Temporal Prediction](https://arxiv.org/abs/2030.12345). 
+This repository is the official implementation of *GAW-KAN: A Novel Kolmogorov-Arnold Network with Graph Attention and Wavelet Transform-based Layers for Spatial and Temporal Prediction*. 
 
 ![Illustration of proposed GAW-KAN](pics/architect.png)
 
