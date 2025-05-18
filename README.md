@@ -6,33 +6,19 @@ This repository is the official implementation of *GAW-KAN: A Novel Kolmogorov-A
 
 ## Requirements
 
-To install requirements:
+To install requirements (python==3.9):
 
 ```setup
 pip install -r requirements.txt
 ```
 
->📋  Describe how to set up the environment, e.g. pip/conda/docker commands, download datasets, etc...
+## Training and Evaluation
 
-## Training
-
-To train the model(s) in the paper, run this command:
+To train and Evaluation the model(s) in the paper, run this command:
 
 ```train
-python train.py --input-data <path_to_data> --alpha 10 --beta 20
+bash run.sh model_name=GawKAN dataset=PEMS-BAY seq_len=12 pre_len=12 is_pre_train=true use_bspline=true
 ```
-
->📋  Describe how to train the models, with example commands on how to train the models in your paper, including the full training procedure and appropriate hyperparameters.
-
-## Evaluation
-
-To evaluate my model on ImageNet, run:
-
-```eval
-python eval.py --model-file mymodel.pth --benchmark imagenet
-```
-
->📋  Describe how to evaluate the trained models on benchmarks reported in the paper, give commands that produce the results (section below).
 
 ## Pre-trained Models
 

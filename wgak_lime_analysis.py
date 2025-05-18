@@ -17,7 +17,7 @@ random.seed(2025)
 np.random.seed(2025)
 
 # 假设WGAK模型和数据加载函数已在STkan2025.module和tools中
-from module.WGAK import WGAK
+from module.GawKAN import GawKAN
 from tools import data_switcher
 
 # 示例数据加载函数（需根据实际数据格式修改）
@@ -63,7 +63,7 @@ def main(args):
         # 加载模型或参数
         state = torch.load(args.model_path, map_location=device)
         if isinstance(state, dict):
-            model = WGAK(input_dim=args.input_dim, output_dim=args.output_dim, hidden_dim=args.hidden_dim, num_layers=args.num_layers, wavelet_type=args.wavelet_type, dwt_level=args.dwt_level, adj=adj, dropout=args.dropout)
+            model = GawKAN(input_dim=args.input_dim, output_dim=args.output_dim, hidden_dim=args.hidden_dim, num_layers=args.num_layers, wavelet_type=args.wavelet_type, dwt_level=args.dwt_level, adj=adj, dropout=args.dropout)
             model.load_state_dict(state)
             model.to(device)
         else:
@@ -78,7 +78,7 @@ def main(args):
         # 加载模型或参数
         state = torch.load(args.model_path, map_location=device)
         if isinstance(state, dict):
-            model = WGAK(input_dim=args.input_dim, output_dim=args.output_dim, hidden_dim=args.hidden_dim, num_layers=args.num_layers, wavelet_type=args.wavelet_type, dwt_level=args.dwt_level, adj=adj, dropout=args.dropout)
+            model = GawKAN(input_dim=args.input_dim, output_dim=args.output_dim, hidden_dim=args.hidden_dim, num_layers=args.num_layers, wavelet_type=args.wavelet_type, dwt_level=args.dwt_level, adj=adj, dropout=args.dropout)
             model.load_state_dict(state)
             model.to(device)
         else:

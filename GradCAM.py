@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import argparse
 import os
 import pandas as pd
-from module.WGAK import WGAK
+from module.GawKAN import GawKAN
 from tools import data_switcher
 
 # Grad-CAM for WGAK
@@ -76,7 +76,7 @@ def main(args):
     # 加载模型
     state = torch.load(args.model_path, map_location=device)
     if isinstance(state, dict):
-        model = WGAK(input_dim=args.input_dim, output_dim=args.output_dim, hidden_dim=args.hidden_dim, num_layers=args.num_layers, wavelet_type=args.wavelet_type, dwt_level=args.dwt_level, adj=adj, dropout=args.dropout)
+        model = GawKAN(input_dim=args.input_dim, output_dim=args.output_dim, hidden_dim=args.hidden_dim, num_layers=args.num_layers, wavelet_type=args.wavelet_type, dwt_level=args.dwt_level, adj=adj, dropout=args.dropout)
         model.load_state_dict(state)
         model.to(device)
     else:
@@ -118,7 +118,7 @@ def main(args):
     plt.colorbar(label='Grad-CAM')
     plt.xlabel('Time Step')
     plt.yticks([])
-    plt.title(f'WGAK Grad-CAM ({args.dataset}, sample {idx}, layer {target_layer})')
+    plt.title(f'GawKAN Grad-CAM ({args.dataset}, sample {idx}, layer {target_layer})')
     plt.tight_layout()
     plt.savefig(f'./analysis/{args.dataset}_gradcam_sample{idx}_{target_layer}.png')
     plt.show()

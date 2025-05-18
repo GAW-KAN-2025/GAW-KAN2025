@@ -52,7 +52,7 @@ class GraphKANLayer(nn.Module):
         out = self.nonlinear[i](feat_cat)
         return out
 
-class WGAK(nn.Module):
+class GawKAN(nn.Module):
     def __init__(self, input_dim=12, output_dim=1, hidden_dim=64, num_layers=2, wavelet_type='db1', dwt_level=2, adj=None, dropout=0.1):
         super().__init__()
         self.input_dim = input_dim

@@ -13,7 +13,7 @@ from module import GAF, SGCTN, WaveSTFTGAT, waveletGAT, FreTimeFusion, FourierGA
 from module import STAK
 from module import SWAK
 from module import WavKAN
-from module import WGAK
+from module import GawKAN
 
 def choose_model(model_name, seq_l, pre_l, adj_dense, device, node_num=None, use_bspline=False):
     adj_dense_cuda = adj_dense.to(device)
@@ -68,8 +68,8 @@ def choose_model(model_name, seq_l, pre_l, adj_dense, device, node_num=None, use
         model = SWAK.SWAK(input_dim=seq_l, output_dim=pre_l, degree=3, use_bspline=use_bspline, n_basis=8, adj=adj_dense_cuda).to(device)
     elif model_name == "WavKAN":
         model = WavKAN.WavKAN(input_dim=seq_l, output_dim=pre_l).to(device)
-    elif model_name == "WGAK":
-        model = WGAK.WGAK(input_dim=seq_l, output_dim=pre_l, adj=adj_dense_cuda).to(device)
+    elif model_name == "GawKAN":
+        model = GawKAN.GawKAN(input_dim=seq_l, output_dim=pre_l, adj=adj_dense_cuda).to(device)
     else:
         raise ValueError(f"Unknown model_name: {model_name}")
     return model
