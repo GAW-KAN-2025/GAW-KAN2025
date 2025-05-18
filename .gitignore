@@ -2,3 +2,4 @@ data/*
 checkpoints/*
 results/*
 analysis/*
+tools/_pycache/*
