@@ -12,6 +12,10 @@ To install requirements (python==3.9):
 pip install -r requirements.txt
 ```
 
+## Dataset Preparaton
+
+GAW-KAN model was trained on ST-EVCDP dataset or PEMS-BAY dataset. Please download required datasets and put the corresponding file using the following form:
+
 ## Training and Evaluation
 
 To train and Evaluation the model(s) in the paper, run this command:
