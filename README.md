@@ -16,7 +16,7 @@ pip install -r requirements.txt
 
 GAW-KAN model was trained on [ST-EVCDP](https://github.com/IntelligentSystemsLab/ST-EVCDP/tree/main/datasets) dataset or [PEMS-BAY](https://drive.google.com/drive/folders/10FOTa6HXPqX8Pf5WRoRwcFnW9BrNZEIX) dataset. Please download required datasets and put the corresponding file using the following form:
 
-[data]-------
+[data]------- \
   |--[PEMS-BAY]
 
 ## Training and Evaluation
