@@ -39,7 +39,7 @@ bash run.sh model_name=GawKAN dataset=PEMS-BAY seq_len=12 pre_len=12 is_pre_trai
 
 You can download pretrained models here:
 
-- [GAW-KAN model](https://drive.google.com/mymodel.pth) trained on PEMS-BAY using $H=12$ and $F=12$.
+- [GAW-KAN model](https://drive.google.com/file/d/1U48MCGs5PjEL6Sxs7sAXnhFBb9m3daVw/view?usp=sharing) trained on PEMS-BAY using $H=12$ and $F=12$.
 
 ## Results
 
