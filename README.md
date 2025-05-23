@@ -43,7 +43,7 @@ You can download pretrained models here:
 
 ## Results
 
-Our model achieves the following performance on :
+Our model achieves the following performance on ST-EVCDP and PEMS-BAY using $H=12$ and $F=12$:
 
 ![Prediction Result 1](pics/table1.png)
 
