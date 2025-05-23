@@ -44,3 +44,7 @@ You can download pretrained models here:
 ## Results
 
 Our model achieves the following performance on :
+
+![Prediction Result 1](pics/table1.png)
+
+![Prediction Result 2](pics/table2.png)
