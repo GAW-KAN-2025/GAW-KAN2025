@@ -20,9 +20,12 @@ GAW-KAN model was trained on [ST-EVCDP](https://github.com/IntelligentSystemsLab
 [data]------- 
   |--[PEMS-BAY] 
     |-- [graph_sensor_locations_bay.csv]
-    |-- []          
+    |-- [adj_mx_bay.pkl]
+    |-- [pems-bay.h5]
+  |-- [ST-EVCDP]       
 ```
 
+Please note that ./data/PEMS-BAY/adj_mx_bay.pkl is downloaded from [adj_mx_bay.pkl](https://github.com/liyaguang/DCRNN/blob/master/data/sensor_graph/adj_mx_bay.pkl).
 
 ## Training and Evaluation
 
