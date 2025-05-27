@@ -55,7 +55,7 @@ for ARG in "$@"; do
       shift
       ;;
     random_seed=*)
-      random_seed="${ARG#*=}"
+      IFS=',' read -ra random_seed_arr <<< "${ARG#*=}"
       shift
       ;;
     *)
@@ -100,27 +100,35 @@ if [ ${#pre_len_arr[@]} -eq 0 ]; then
     pre_len_arr=("$pre_len")
 fi
 
-for s in "${seq_len_arr[@]}"; do
-  for p in "${pre_len_arr[@]}"; do
-    if [ "$model_name" = "ALL" ]; then
-        for mod in "${model_list[@]}"; do
-            python -u start.py \
-            --model_name="$mod" \
-            --dataset="$dataset" \
-            --seq_len="$s" \
-            --pre_len="$p" \
-            --is_pre_train="$is_pre_train" \
-            --use_bspline="$use_bspline"
-        done
-    else
-        python -u start.py \
-        --model_name="$model_name" \
-        --dataset="$dataset" \
-        --seq_len="$s" \
-        --pre_len="$p" \
-        --is_pre_train="$is_pre_train" \
-        --use_bspline="$use_bspline"
-    fi
+if [ ${#random_seed_arr[@]} -eq 0 ]; then
+    random_seed_arr=("$random_seed")
+fi
+
+for r in "${random_seed_arr[@]}"; do
+  for s in "${seq_len_arr[@]}"; do
+    for p in "${pre_len_arr[@]}"; do
+      if [ "$model_name" = "ALL" ]; then
+          for mod in "${model_list[@]}"; do
+              python -u start.py \
+              --model_name="$mod" \
+              --dataset="$dataset" \
+              --seq_len="$s" \
+              --pre_len="$p" \
+              --is_pre_train="$is_pre_train" \
+              --use_bspline="$use_bspline" \
+              --random_seed="$r"
+          done
+      else
+          python -u start.py \
+          --model_name="$model_name" \
+          --dataset="$dataset" \
+          --seq_len="$s" \
+          --pre_len="$p" \
+          --is_pre_train="$is_pre_train" \
+          --use_bspline="$use_bspline" \
+          --random_seed="$r"
+      fi
+    done
   done
 done
 
