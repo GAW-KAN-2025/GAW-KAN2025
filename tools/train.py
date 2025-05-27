@@ -99,7 +99,7 @@ def train(args):
                 counter = 0
                 best_epoch = epoch
                 print(f"Epoch {epoch}: Validation loss improved to {v_loss:.6f}")
-                model_path = './checkpoints' + '/' + model_name + '_' + dataset + '_' + str(pre_l) + '_bs' + str(bs) + '_' + mode + bspline_tag + '.pt'
+                model_path = './checkpoints' + '/' + model_name + '_' + dataset + '_seq' + str(seq_l) + '_pre' + str(pre_l) + '_bs' + str(bs) + '_' + mode + bspline_tag + '_seed' + str(args.random_seed) + '.pt'
                 torch.save(model, model_path)
             else:
                 counter += 1
@@ -114,8 +114,8 @@ def train(args):
 
     print(f"----Training finished!----")
     
-    model = torch.load('./checkpoints' + '/' + model_name + '_' + dataset + '_' + str(pre_l) + '_bs' + str(bs) + '_' + mode + bspline_tag + '.pt')
-    print(f"----Model was saved into folder: {'./checkpoints' + '/' + model_name + '_' + dataset + '_' + str(pre_l) + '_bs' + str(bs) + '_' + mode + bspline_tag + '.pt'}")
+    model = torch.load('./checkpoints' + '/' + model_name + '_' + dataset + '_seq' + str(seq_l) + '_pre' + str(pre_l) + '_bs' + str(bs) + '_' + mode + bspline_tag + '_seed' + str(args.random_seed) + '.pt')
+    print(f"----Model was saved into folder: {'./checkpoints' + '/' + model_name + '_' + dataset + '_seq' + str(seq_l) + '_pre' + str(pre_l) + '_bs' + str(bs) + '_' + mode + bspline_tag + '_seed' + str(args.random_seed) + '.pt'}")
     # test
     model.eval()
     result_list = []
@@ -168,7 +168,7 @@ def train(args):
         columns=['horizon', 'MSE', 'RMSE', 'MAPE', 'RAE', 'MAE', 'R2'],
         data=result_list
     )
-    result_df.to_csv('./results' + '/' + model_name + '_' + dataset + '_' + str(pre_l) + 'bs' + str(bs) + bspline_tag + '.csv', encoding='gbk', index=False)
+    result_df.to_csv('./results' + '/' + model_name + '_' + dataset + '_seq' + str(seq_l) + '_pre' + str(pre_l) + 'bs' + str(bs) + bspline_tag + '_seed' + str(args.random_seed) + '.csv', encoding='gbk', index=False)
 
     # Print average time and memory usage
     print(f'Average time per prediction: {np.mean(time_list)} seconds')

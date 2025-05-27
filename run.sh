@@ -39,7 +39,7 @@ for ARG in "$@"; do
       shift
       ;;
     seq_len=*)
-      seq_len="${ARG#*=}"
+      IFS=',' read -ra seq_len_arr <<< "${ARG#*=}"
       shift
       ;;
     pre_len=*)
@@ -52,6 +52,10 @@ for ARG in "$@"; do
       ;;
     use_bspline=*)
       use_bspline="${ARG#*=}"
+      shift
+      ;;
+    random_seed=*)
+      random_seed="${ARG#*=}"
       shift
       ;;
     *)
@@ -88,30 +92,36 @@ fi
 model_list=("KAN" "VAR" "FCN" "LSTM" "TransformerModel" "GCN" "GAT" "STGCN" "LstmGcn" "LstmGat" "HSTGCN" "TPA" "FGN" \
   "GAF" "SGCTN" "WaveSTFTGAT" "waveletGAT" "FreTimeFusion" "FourierGAT" "CoupFourGAT" "CoupFourGAT_v2" "STAK" "SWAK" "WavKAN" "GawKAN")
 
+if [ ${#seq_len_arr[@]} -eq 0 ]; then
+    seq_len_arr=("$seq_len")
+fi
+
 if [ ${#pre_len_arr[@]} -eq 0 ]; then
     pre_len_arr=("$pre_len")
 fi
 
-for p in "${pre_len_arr[@]}"; do
-  if [ "$model_name" = "ALL" ]; then
-      for mod in "${model_list[@]}"; do
-          python -u start.py \
-          --model_name="$mod" \
-          --dataset="$dataset" \
-          --seq_len="$seq_len" \
-          --pre_len="$p" \
-          --is_pre_train="$is_pre_train" \
-          --use_bspline="$use_bspline"
-      done
-  else
-      python -u start.py \
-      --model_name="$model_name" \
-      --dataset="$dataset" \
-      --seq_len="$seq_len" \
-      --pre_len="$p" \
-      --is_pre_train="$is_pre_train" \
-      --use_bspline="$use_bspline"
-  fi
+for s in "${seq_len_arr[@]}"; do
+  for p in "${pre_len_arr[@]}"; do
+    if [ "$model_name" = "ALL" ]; then
+        for mod in "${model_list[@]}"; do
+            python -u start.py \
+            --model_name="$mod" \
+            --dataset="$dataset" \
+            --seq_len="$s" \
+            --pre_len="$p" \
+            --is_pre_train="$is_pre_train" \
+            --use_bspline="$use_bspline"
+        done
+    else
+        python -u start.py \
+        --model_name="$model_name" \
+        --dataset="$dataset" \
+        --seq_len="$s" \
+        --pre_len="$p" \
+        --is_pre_train="$is_pre_train" \
+        --use_bspline="$use_bspline"
+    fi
+  done
 done
 
 if [ $? -eq 0 ]; then
