@@ -70,8 +70,11 @@ def train(args):
         best_model = None
         counter = 0
         best_epoch = 0
+        all_epochs_theta_history = []
 
         for epoch in tqdm(range(n_epoch), desc='Fine-tuning'):
+            if model_name == 'GawKAN':
+                model.theta_history.clear()
             for j, data in enumerate(train_loader):
                 model.train()
                 occupancy, price, label = data
@@ -81,6 +84,48 @@ def train(args):
                 loss.backward()
                 optimizer.step()
                 scheduler.step()
+
+            # 在验证前记录theta值
+            if model.__class__.__module__ == 'module.GawKAN_wave':
+                num_batches_in_epoch = len(model.theta_history)
+                if num_batches_in_epoch > 0:
+                    num_layers = model.num_layers
+                    sum_graph_thetas = [0.0] * num_layers
+                    sum_wavelet_thetas = [0.0] * num_layers
+                    for batch_thetas in model.theta_history:
+                        for i in range(num_layers):
+                            sum_graph_thetas[i] += batch_thetas['graph'][i]
+                            sum_wavelet_thetas[i] += batch_thetas['wavelet'][i]
+                    avg_graph_thetas = [s / num_batches_in_epoch for s in sum_graph_thetas]
+                    avg_wavelet_thetas = [s / num_batches_in_epoch for s in sum_wavelet_thetas]
+                    epoch_thetas = {'epoch': epoch}
+                    for i in range(num_layers):
+                        epoch_thetas[f'graph_theta_L{i+1}'] = avg_graph_thetas[i]
+                        epoch_thetas[f'wavelet_theta_L{i+1}'] = avg_wavelet_thetas[i]
+                    # 记录logits
+                    for i, wavelet_layer in enumerate(model.wavelet_layers):
+                        with torch.no_grad():
+                            weights = torch.softmax(wavelet_layer.level_logits, dim=0).cpu().numpy()
+                        for j, w in enumerate(weights):
+                            epoch_thetas[f'wavelet_L{i+1}_level_weight_{j+1}'] = w
+                    all_epochs_theta_history.append(epoch_thetas)
+            elif model.__class__.__module__ == 'module.GawKAN_v3':
+                num_batches_in_epoch = len(model.theta_history)
+                if num_batches_in_epoch > 0:
+                    num_layers = model.num_layers
+                    sum_graph_thetas = [0.0] * num_layers
+                    sum_wavelet_thetas = [0.0] * num_layers
+                    for batch_thetas in model.theta_history:
+                        for i in range(num_layers):
+                            sum_graph_thetas[i] += batch_thetas['graph'][i]
+                            sum_wavelet_thetas[i] += batch_thetas['wavelet'][i]
+                    avg_graph_thetas = [s / num_batches_in_epoch for s in sum_graph_thetas]
+                    avg_wavelet_thetas = [s / num_batches_in_epoch for s in sum_wavelet_thetas]
+                    epoch_thetas = {'epoch': epoch}
+                    for i in range(num_layers):
+                        epoch_thetas[f'graph_theta_L{i+1}'] = avg_graph_thetas[i]
+                        epoch_thetas[f'wavelet_theta_L{i+1}'] = avg_wavelet_thetas[i]
+                    all_epochs_theta_history.append(epoch_thetas)
 
             # validation
             model.eval()
@@ -98,12 +143,10 @@ def train(args):
                 best_model = model.state_dict().copy()
                 counter = 0
                 best_epoch = epoch
-                print(f"Epoch {epoch}: Validation loss improved to {v_loss:.6f}")
                 model_path = './checkpoints' + '/' + model_name + '_' + dataset + '_seq' + str(seq_l) + '_pre' + str(pre_l) + '_bs' + str(bs) + '_' + mode + bspline_tag + '_seed' + str(args.random_seed) + '.pt'
                 torch.save(model, model_path)
             else:
                 counter += 1
-                print(f"Epoch {epoch}: Validation loss did not improve. Counter: {counter}/{patience}")
                 
             # Early stopping check
             if counter >= patience:
@@ -111,6 +154,13 @@ def train(args):
                 # Load the best model
                 model.load_state_dict(best_model)
                 break
+
+    if model_name == 'GawKAN' and all_epochs_theta_history:
+        theta_df = pd.DataFrame(all_epochs_theta_history)
+        theta_filename = f'thetas_{dataset}_seq{seq_l}_pre{pre_l}_seed{args.random_seed}.csv'
+        theta_filepath = './results/' + theta_filename
+        theta_df.to_csv(theta_filepath, index=False)
+        print(f"----GawKAN theta history saved to {theta_filepath}----")
 
     print(f"----Training finished!----")
     

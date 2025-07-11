@@ -298,30 +298,57 @@ class GAT(nn.Module):
         self.nodes = adj_dense.shape[0]
         self.dropout = dropout
         self.seq = seq
+        self.n_fea = n_fea
         self.pre_l = pre_l
 
-        # 初始化 GATConv 层
-        self.gat1 = GATConv(n_fea, 3, dropout=dropout, heads=3)
-        self.gat2 = GATConv(9, out_features, dropout=dropout, heads=1)
-        self.decoder = nn.Linear(seq, pre_l)
-        self.adj = adj_dense
+        # 编码器，与其他模型保持一致
+        self.encoder = nn.Conv2d(self.nodes, self.nodes, (n_fea, n_fea))
+        
+        # 计算编码后的序列长度
+        self.encoded_seq = seq - n_fea + 1
+        
+        # 初始化 GATConv 层，使用更合理的特征维度
+        hidden_dim = 64
+        self.gat1 = GATConv(self.encoded_seq, hidden_dim, dropout=dropout, heads=4, concat=True)
+        self.gat2 = GATConv(hidden_dim * 4, hidden_dim, dropout=dropout, heads=1, concat=False)
+        
+        # 输出层
+        self.decoder = nn.Linear(hidden_dim, pre_l)
+        
+        # 激活函数和正则化
+        self.act = nn.ReLU()
+        self.dropout_layer = nn.Dropout(dropout)
+        
+        # 保存邻接矩阵并转换为edge_index格式
+        self.register_buffer('edge_index', adj_dense.nonzero(as_tuple=False).t().contiguous())
 
     def forward(self, occ, prc):
-        x = torch.stack([occ, prc], dim=2)  # x.shape: (batch, node, seq, 2)
-        x = x.view(-1, x.size(2))  # Flatten batch and node dimensions
-
-        # 需要将 adj_dense 转换为 edge_index 格式
-        edge_index = self.adj.nonzero(as_tuple=False).t().contiguous()
-
-        # 调用 GATConv 层
-        x = self.gat1(x, edge_index)
-        x = F.elu(x)
-        x = self.gat2(x, edge_index)
-
-        x = F.dropout(x, self.dropout, training=self.training)
-
-        x = x.view(-1, self.nodes, self.seq)  # Reshape back to (batch, node, seq)
-        x = self.decoder(x)
+        # 输入处理：occ.shape = [batch, node, seq], prc.shape = [batch, node, seq]
+        x = torch.stack([occ, prc], dim=3)  # x.shape: (batch, node, seq, 2)
+        x = self.encoder(x)  # 使用编码器
+        x = torch.squeeze(x)  # 移除channel维度，shape: (batch, node, encoded_seq)
+        
+        batch_size, num_nodes, encoded_seq = x.shape
+        
+        # 重塑为 (batch * node, encoded_seq) 以便批量处理
+        x = x.view(-1, encoded_seq)  # shape: (batch * node, encoded_seq)
+        
+        # 第一层GAT - 对所有batch和node一起处理
+        x = self.gat1(x, self.edge_index)  # shape: (batch * node, hidden_dim * 4)
+        x = self.act(x)
+        x = self.dropout_layer(x)
+        
+        # 第二层GAT
+        x = self.gat2(x, self.edge_index)  # shape: (batch * node, hidden_dim)
+        x = self.act(x)
+        x = self.dropout_layer(x)
+        
+        # 解码到预测长度
+        x = self.decoder(x)  # shape: (batch * node, pre_l)
+        
+        # 重塑回 (batch, node, pre_l)
+        x = x.view(batch_size, num_nodes, self.pre_l)
+        
         return x
 
 class TemporalGatedConv(nn.Module):

@@ -13,7 +13,7 @@ from module import GAF, SGCTN, WaveSTFTGAT, waveletGAT, FreTimeFusion, FourierGA
 from module import STAK
 from module import SWAK
 from module import WavKAN
-from module import GawKAN
+from module import GawKAN_v3 as GawKAN
 
 def choose_model(model_name, seq_l, pre_l, adj_dense, device, node_num=None, use_bspline=False):
     adj_dense_cuda = adj_dense.to(device)
